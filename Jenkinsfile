@@ -44,7 +44,7 @@ pipeline {
                 echo "==> Running Bandit security scan (SAST)..."
                 sh "${PYTHON} -m bandit -r app.py -ll -f txt || true"
                 echo "==> Checking dependencies for known vulnerabilities..."
-                sh "${PYTHON} -m safety check -r requirements.txt --output text || true"
+                sh "${PYTHON} -m pip_audit -r requirements.txt || true"
             }
         }
 
@@ -62,7 +62,13 @@ pipeline {
             post {
                 always {
                     echo "Tests completed."
-                    junit 'test-results.xml'
+                    // junit step requires the 'JUnit Plugin' in Jenkins.
+                    // If not installed, install via: Manage Jenkins → Plugins → JUnit
+                    try {
+                        junit 'test-results.xml'
+                    } catch (e) {
+                        echo "JUnit plugin not available – install it for test result graphs. Archiving XML instead."
+                    }
                     archiveArtifacts artifacts: 'test-results.xml, coverage.xml', allowEmptyArchive: true
                 }
             }

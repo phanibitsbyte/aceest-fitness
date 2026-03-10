@@ -1,3 +1,6 @@
+# ACEest Fitness & Gym - v3.0.1
+# Desktop Application - Full Feature Release
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 import sqlite3
@@ -790,3 +793,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = ACEestApp(root)
     root.mainloop()
+

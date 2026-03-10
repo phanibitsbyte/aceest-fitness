@@ -61,16 +61,10 @@ pipeline {
             }
             post {
                 always {
-                    echo "Tests completed."
-                    // junit step requires the 'JUnit Plugin' in Jenkins.
-                    // Wrapped in script{} + try/catch for declarative pipeline compatibility.
-                    script {
-                        try {
-                            junit 'test-results.xml'
-                        } catch (e) {
-                            echo "JUnit plugin not available – install it for test result graphs. Archiving XML instead."
-                        }
-                    }
+                    echo "Tests completed. Coverage: see coverage.xml artifact."
+                    // NOTE: Install the 'JUnit Plugin' in Jenkins (Manage Jenkins → Plugins)
+                    // to get a test results trend graph. Without it, results are in the
+                    // archived test-results.xml file below.
                     archiveArtifacts artifacts: 'test-results.xml, coverage.xml', allowEmptyArchive: true
                 }
             }

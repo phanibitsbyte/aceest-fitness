@@ -1,6 +1,13 @@
 # ACEest Fitness & Gym — DevOps CI/CD Platform
 
-[![CI/CD Pipeline](https://github.com/phanibitsbyte/aceest-fitness-devops/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/phanibitsbyte/aceest-fitness-devops/actions/workflows/main.yml)
+[![CI/CD Pipeline](https://github.com/phanibitsbyte/aceest-fitness/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/phanibitsbyte/aceest-fitness/actions/workflows/main.yml)
+[![Rollback Workflow](https://github.com/phanibitsbyte/aceest-fitness/actions/workflows/rollback.yml/badge.svg)](https://github.com/phanibitsbyte/aceest-fitness/actions/workflows/rollback.yml)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
+[![Flask](https://img.shields.io/badge/flask-3.0-green.svg)](https://flask.palletsprojects.com/)
+[![Tests](https://img.shields.io/badge/tests-31%20passed-brightgreen.svg)](https://github.com/phanibitsbyte/aceest-fitness/actions)
+[![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen.svg)](https://github.com/phanibitsbyte/aceest-fitness/actions)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/docker-multi--stage-blue.svg)](Dockerfile)
 
 > **Course:** Introduction to DevOps (CSIZG514 / SEZG514 / SEUSZG514) — Assignment 1 · 2026
 > **Student:** 2024TM93592 · BITS Pilani WILP
@@ -28,7 +35,7 @@ ACEest Fitness & Gym is a **Python/Flask** web application for managing gym clie
 > Requires: **Docker Desktop** and **Git**. Nothing else needs to be installed locally.
 
 ```bash
-git clone https://github.com/phanibitsbyte/aceest-fitness-devops.git
+git clone https://github.com/phanibitsbyte/aceest-fitness.git
 cd aceest-fitness
 docker compose up -d
 ```
@@ -106,7 +113,7 @@ aceest-fitness/
 ### Setup
 
 ```bash
-git clone https://github.com/phanibitsbyte/aceest-fitness-devops.git
+git clone https://github.com/phanibitsbyte/aceest-fitness.git
 cd aceest-fitness
 
 # Create and activate a virtual environment
@@ -279,7 +286,7 @@ First-time login: `admin` / `admin` (set by `jenkins/01-security.groovy` on firs
 1. Open **http://localhost:8080** → log in
 2. **New Item** → name: `aceest-fitness` → select **Pipeline** → OK
 3. Under *Pipeline*: Definition = **Pipeline script from SCM**
-4. SCM = **Git**, Repository URL = `https://github.com/phanibitsbyte/aceest-fitness-devops.git`
+4. SCM = **Git**, Repository URL = `https://github.com/phanibitsbyte/aceest-fitness.git`
 5. Branch = `*/develop`, Script Path = `Jenkinsfile`
 6. **Save** → **Build Now**
 

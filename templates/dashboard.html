@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - ACEest{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Dashboard</h2>
+  <a href="{{ url_for('clients') }}" class="btn-primary">+ Add Client</a>
+</div>
+
+{% if expiring %}
+<div class="flash flash-error">
+  <strong>Membership Alert:</strong> {{ expiring|length }} client(s) have membership expiring within 30 days.
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>Clients ({{ clients|length }})</h3>
+  {% if clients %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Name</th><th>Program</th><th>Calories</th><th>Membership Expiry</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for c in clients %}
+      <tr>
+        <td><a href="{{ url_for('client_detail', name=c.name) }}">{{ c.name }}</a></td>
+        <td>{{ c.program or '-' }}</td>
+        <td>{{ c.calories or '-' }}</td>
+        <td>{{ c.membership_expiry or 'N/A' }}</td>
+        <td><a href="{{ url_for('client_detail', name=c.name) }}" class="btn-sm">View</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No clients yet. <a href="{{ url_for('clients') }}">Add your first client</a>.</p>
+  {% endif %}
+</div>
+{% endblock %}

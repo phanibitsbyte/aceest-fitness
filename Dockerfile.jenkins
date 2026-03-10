@@ -1,0 +1,66 @@
+# ============================================================
+# ACEest Fitness & Gym – Custom Jenkins Image
+#
+# Extends the official Jenkins LTS image with:
+#   - Python 3 + pip  (for Install Dependencies, Lint, Test stages)
+#   - Docker CLI      (for the Docker Build stage via DooD)
+#   - Pre-installed pipeline plugins (no manual plugin setup needed)
+#
+# Build:  docker build -f Dockerfile.jenkins -t aceest-jenkins .
+# ============================================================
+
+FROM jenkins/jenkins:lts-jdk17
+
+USER root
+
+# ── System dependencies ──────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3 \
+        python3-pip \
+        python3-venv \
+        ca-certificates \
+        curl \
+        gnupg \
+        lsb-release \
+    && install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg \
+       | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
+    && chmod a+r /etc/apt/keyrings/docker.gpg \
+    && echo \
+       "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+       https://download.docker.com/linux/debian \
+       $(lsb_release -cs) stable" \
+       > /etc/apt/sources.list.d/docker.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends docker-ce-cli \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Ensure python3/pip3 are on PATH with stable names
+RUN ln -sf /usr/bin/python3 /usr/local/bin/python3 \
+ && ln -sf /usr/bin/python3 /usr/local/bin/python
+
+# Allow pip installs system-wide inside the container (Debian Bookworm PEP 668)
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+
+# Add jenkins user to the docker group so it can talk to the Docker socket
+RUN groupadd -f docker && usermod -aG docker jenkins
+
+# ── Jenkins plugins ──────────────────────────────────────────────
+# Pre-install essential plugins so no manual plugin setup is required.
+USER jenkins
+
+RUN jenkins-plugin-cli --plugins \
+    workflow-aggregator \
+    git \
+    docker-workflow \
+    pipeline-stage-view \
+    credentials-binding \
+    timestamper \
+    ansicolor
+
+# Skip the first-run setup wizard — admin credentials set via init script below
+ENV JAVA_OPTS="-Djenkins.install.runSetupWizard=false"
+
+# Copy Groovy init scripts — executed by Jenkins on first startup
+# Ref directory contents are automatically copied to JENKINS_HOME on boot
+COPY jenkins/ /usr/share/jenkins/ref/init.groovy.d/

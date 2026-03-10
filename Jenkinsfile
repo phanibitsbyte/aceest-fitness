@@ -7,6 +7,11 @@
 //   2. Create a new Pipeline project.
 //   3. Set "Pipeline script from SCM" → Git → your GitHub repo URL.
 //   4. Ensure the Jenkins agent has Python 3.11+ and Docker installed.
+//
+// Recommended Jenkins plugins (for full reporting):
+//   - JUnit Plugin      → Test Results tab + trend graph
+//   - Cobertura Plugin  → Coverage Report tab + trend graph
+//   Install via: Manage Jenkins → Plugins → Available
 // ============================================================
 
 pipeline {
@@ -62,9 +67,26 @@ pipeline {
             post {
                 always {
                     echo "Tests completed. Coverage: see coverage.xml artifact."
-                    // NOTE: Install the 'JUnit Plugin' in Jenkins (Manage Jenkins → Plugins)
-                    // to get a test results trend graph. Without it, results are in the
-                    // archived test-results.xml file below.
+
+                    // Publish JUnit test results (requires JUnit Plugin)
+                    junit testResults: 'test-results.xml', allowEmptyResults: true
+
+                    // Publish Cobertura coverage report (requires Cobertura Plugin)
+                    cobertura(
+                        coberturaReportFile:    'coverage.xml',
+                        onlyStable:             false,
+                        failNoReports:          false,
+                        failUnhealthy:          false,
+                        failUnstable:           false,
+                        autoUpdateHealth:       true,
+                        autoUpdateStability:    true,
+                        zoomCoverageChart:      true,
+                        conditionalCoverageTargets: '70, 0, 0',
+                        lineCoverageTargets:        '80, 0, 0',
+                        methodCoverageTargets:      '80, 0, 0'
+                    )
+
+                    // Always archive raw XML so reports are downloadable even without plugins
                     archiveArtifacts artifacts: 'test-results.xml, coverage.xml', allowEmptyArchive: true
                 }
             }

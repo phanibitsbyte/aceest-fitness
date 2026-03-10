@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{{ client.name }} – ACEest{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{{ client.name }}</h1>
+  <div>
+    <a href="{{ url_for('workouts', name=client.name) }}" class="btn-secondary">Workouts</a>
+    <a href="{{ url_for('generate_report', name=client.name) }}" class="btn-accent">Download PDF</a>
+    <a href="{{ url_for('generate_program', name=client.name) }}" class="btn-secondary">AI Generate Program</a>
+  </div>
+</div>
+
+<div class="two-col">
+  <!-- Edit Form -->
+  <section class="card">
+    <h2>Profile</h2>
+    <form method="POST">
+      <div class="form-group">
+        <label>Age</label>
+        <input type="number" name="age" value="{{ client.age or '' }}" />
+      </div>
+      <div class="form-group">
+        <label>Height (cm)</label>
+        <input type="number" step="0.1" name="height" value="{{ client.height or '' }}" />
+      </div>
+      <div class="form-group">
+        <label>Weight (kg)</label>
+        <input type="number" step="0.1" name="weight" value="{{ client.weight or '' }}" />
+      </div>
+      <div class="form-group">
+        <label>Program</label>
+        <select name="program">
+          {% for p in programs %}
+          <option value="{{ p }}" {{ 'selected' if client.program == p }}>{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Target Weight (kg)</label>
+        <input type="number" step="0.1" name="target_weight" value="{{ client.target_weight or '' }}" />
+      </div>
+      <div class="form-group">
+        <label>Target Adherence (%)</label>
+        <input type="number" name="target_adherence" value="{{ client.target_adherence or '' }}" />
+      </div>
+      <div class="form-group">
+        <label>Membership Expiry</label>
+        <input type="date" name="membership_expiry" value="{{ client.membership_expiry or '' }}" />
+      </div>
+      <button type="submit" class="btn-primary">Update</button>
+    </form>
+  </section>
+
+  <!-- Program Info + Progress -->
+  <div>
+    {% if program_info %}
+    <section class="card program-card">
+      <h2>Program: {{ client.program }}</h2>
+      <div class="program-block">
+        <h3>Workout Plan</h3>
+        <pre>{% for ex in program_info.exercises %}{{ ex }}
+{% endfor %}</pre>
+      </div>
+      <div class="program-block">
+        <h3>Nutrition Plan</h3>
+        <pre>{{ program_info.diet }}</pre>
+      </div>
+      {% if client.weight %}
+      <p class="calorie-estimate">
+        Daily Calorie Target: <strong>{{ program_info.calories }} kcal</strong>
+      </p>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if generated_program %}
+    <section class="card">
+      <h2>AI Generated Program</h2>
+      <div class="program-block">
+        <pre>{% for ex in generated_program %}{{ ex }}
+{% endfor %}</pre>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <h2>Weekly Progress</h2>
+      <form method="POST" action="{{ url_for('save_progress', name=client.name) }}" class="inline-form">
+        <label>Week</label>
+        <input type="number" name="week" min="1" value="{{ (progress|length) + 1 }}" style="width:60px" />
+        <label>Adherence (%)</label>
+        <input type="number" name="adherence" min="0" max="100" value="80" style="width:80px" />
+        <button type="submit" class="btn-primary">Log Week</button>
+      </form>
+
+      {% if progress %}
+      <table class="data-table mt-10">
+        <thead><tr><th>Week</th><th>Adherence</th></tr></thead>
+        <tbody>
+          {% for row in progress %}
+          <tr><td>{{ row.week }}</td><td>{{ row.adherence }}%</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty-state">No progress logged yet.</p>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

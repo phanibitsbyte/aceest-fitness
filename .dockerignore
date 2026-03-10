@@ -1,0 +1,42 @@
+# Exclude files that should NOT be in the Docker image
+
+# Git history
+.git/
+.gitignore
+
+# Virtual environment (deps installed from requirements.txt)
+venv/
+env/
+.venv/
+
+# Runtime-generated files
+*.db
+*_report.pdf
+
+# Test cache
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# CI config (not needed inside container)
+.github/
+Jenkinsfile
+Dockerfile.jenkins
+
+# Docs
+README.md
+
+# Environment files (secrets must never be baked into the image)
+*.env
+.env*
+
+# Docker build files (not needed inside container)
+Dockerfile*
+docker-compose*.yml

@@ -1,0 +1,92 @@
+# ============================================================
+# ACEest Fitness & Gym – Docker Compose
+#
+# Services:
+#   web      – Flask application  → http://localhost:5000
+#   jenkins  – Jenkins CI server  → http://localhost:8080
+#
+# Usage:
+#   Start all:       docker compose up -d
+#   Rebuild images:  docker compose up -d --build
+#   Stop:            docker compose down
+#   Remove volumes:  docker compose down -v
+#   Logs:            docker compose logs -f
+#
+# Jenkins first-run setup:
+#   1. Open http://localhost:8080
+#   2. Retrieve the initial admin password:
+#        docker exec aceest-jenkins \
+#          cat /var/jenkins_home/secrets/initialAdminPassword
+#   3. Create an admin user when prompted.
+#   4. Create a new "Pipeline" job:
+#        - Definition: Pipeline script from SCM
+#        - SCM: Git  →  https://github.com/phanibitsbyte/aceest-fitness.git
+#        - Branch: */develop  (or */main)
+#        - Script Path: Jenkinsfile
+#   5. Click "Build Now" — all 5 stages should go green.
+# ============================================================
+
+services:
+
+  # ── Flask web application ──────────────────────────────────────
+  web:
+    build:
+      context: .
+      target: production
+    image: aceest-fitness:latest
+    container_name: aceest-fitness-app
+    ports:
+      - "5000:5000"
+    volumes:
+      - aceest_data:/app/data
+    environment:
+      - DB_NAME=/app/data/aceest_fitness.db
+      - SECRET_KEY=${SECRET_KEY:-dev-only-change-in-production}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:5000/login')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    networks:
+      - aceest-net
+
+  # ── Jenkins CI server ──────────────────────────────────────────
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile.jenkins
+    image: aceest-jenkins:latest
+    container_name: aceest-jenkins
+    ports:
+      - "8080:8080"    # Jenkins web UI
+      - "50000:50000"  # Jenkins agent / JNLP port
+    volumes:
+      # Persist Jenkins configuration, jobs, and build history
+      - jenkins_home:/var/jenkins_home
+      # Docker-outside-of-Docker: share the host Docker socket so the
+      # pipeline's "Docker Build" stage can build images via docker build
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Add jenkins user to GID 0 (root) so it can access /var/run/docker.sock
+    # which Docker Desktop exposes as root:root on the socket
+    group_add:
+      - "0"
+    environment:
+      # Increase JVM heap for larger builds
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Xmx512m
+    restart: unless-stopped
+    networks:
+      - aceest-net
+
+networks:
+  aceest-net:
+    driver: bridge
+
+volumes:
+  aceest_data:
+    name: aceest_data
+  jenkins_home:
+    name: jenkins_home
+

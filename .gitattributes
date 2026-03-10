@@ -1,0 +1,30 @@
+# Enforce LF line endings for all text files (prevents CRLF-mangling on Windows)
+* text=auto eol=lf
+
+# Python source files — always LF
+*.py text eol=lf
+
+# Shell scripts — always LF
+*.sh text eol=lf
+
+# YAML/config files — always LF
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
+Jenkinsfile text eol=lf
+*.txt text eol=lf
+*.md text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+*.toml text eol=lf
+
+# Binary files — no line-ending conversion
+*.db binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.whl binary
+*.pyc binary

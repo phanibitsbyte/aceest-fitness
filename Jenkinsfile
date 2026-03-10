@@ -41,17 +41,29 @@ pipeline {
             steps {
                 echo "==> Running flake8 linter..."
                 sh "${PYTHON} -m flake8 app.py tests/ --max-line-length=120 --statistics"
+                echo "==> Running Bandit security scan (SAST)..."
+                sh "${PYTHON} -m bandit -r app.py -ll -f txt || true"
+                echo "==> Checking dependencies for known vulnerabilities..."
+                sh "${PYTHON} -m safety check -r requirements.txt --output text || true"
             }
         }
 
         stage('Test') {
             steps {
-                echo "==> Running Pytest suite..."
-                sh "${PYTHON} -m pytest tests/ -v --tb=short"
+                echo "==> Running Pytest suite with coverage..."
+                sh """
+                    ${PYTHON} -m pytest tests/ -v --tb=short \
+                        --cov=app \
+                        --cov-report=xml:coverage.xml \
+                        --cov-report=term-missing \
+                        --junitxml=test-results.xml
+                """
             }
             post {
                 always {
                     echo "Tests completed."
+                    junit 'test-results.xml'
+                    archiveArtifacts artifacts: 'test-results.xml, coverage.xml', allowEmptyArchive: true
                 }
             }
         }

@@ -9,9 +9,9 @@
 //   4. Ensure the Jenkins agent has Python 3.11+ and Docker installed.
 //
 // Recommended Jenkins plugins (for full reporting):
-//   - JUnit Plugin      → Test Results tab + trend graph
-//   - Cobertura Plugin  → Coverage Report tab + trend graph
-//   Install via: Manage Jenkins → Plugins → Available
+//   - JUnit Plugin      → Test Results tab + trend graph  ✅ already installed
+//   - Coverage Plugin   → Coverage Report tab + trend graph (NOT "Cobertura Plugin")
+//   Install via: Manage Jenkins → Plugins → Available → search "Coverage"
 // ============================================================
 
 pipeline {
@@ -71,19 +71,14 @@ pipeline {
                     // Publish JUnit test results (requires JUnit Plugin)
                     junit testResults: 'test-results.xml', allowEmptyResults: true
 
-                    // Publish Cobertura coverage report (requires Cobertura Plugin)
-                    cobertura(
-                        coberturaReportFile:    'coverage.xml',
-                        onlyStable:             false,
-                        failNoReports:          false,
-                        failUnhealthy:          false,
-                        failUnstable:           false,
-                        autoUpdateHealth:       true,
-                        autoUpdateStability:    true,
-                        zoomCoverageChart:      true,
-                        conditionalCoverageTargets: '70, 0, 0',
-                        lineCoverageTargets:        '80, 0, 0',
-                        methodCoverageTargets:      '80, 0, 0'
+                    // Publish coverage report (requires Coverage Plugin — NOT Cobertura Plugin)
+                    // Install: Manage Jenkins → Plugins → Available → search "Coverage"
+                    recordCoverage(
+                        tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
+                        id: 'coverage',
+                        name: 'ACEest Coverage Report',
+                        failOnError: false,
+                        sourceCodeRetention: 'EVERY_BUILD'
                     )
 
                     // Always archive raw XML so reports are downloadable even without plugins

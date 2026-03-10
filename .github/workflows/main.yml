@@ -59,6 +59,14 @@ jobs:
             --statistics \
             --count
 
+      - name: Security scan with Bandit (SAST)
+        run: |
+          bandit -r app.py -ll -f txt || true
+
+      - name: Dependency vulnerability scan (Safety)
+        run: |
+          safety check -r requirements.txt --output text || true
+
   # ----------------------------------------------------------
   # Job 2: Docker Image Assembly
   # Build the Docker container image from Dockerfile.
@@ -106,11 +114,35 @@ jobs:
             -e SECRET_KEY=ci-test-secret \
             aceest-fitness:test
 
+      - name: Run Pytest with coverage (host, for report)
+        run: |
+          pip install -r requirements-dev.txt
+          pytest tests/ -v \
+            --cov=app \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --junitxml=test-results.xml
+        env:
+          DB_NAME: test_aceest.db
+          SECRET_KEY: ci-coverage-secret
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results.xml
+
       - name: Upload test results (on failure)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-failure
           path: .pytest_cache/
 
   # ----------------------------------------------------------

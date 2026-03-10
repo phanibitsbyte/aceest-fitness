@@ -1,6 +1,13 @@
 # ACEest Fitness & Gym — DevOps CI/CD Platform
 
 [![CI/CD Pipeline](https://github.com/phanibitsbyte/aceest-fitness/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/phanibitsbyte/aceest-fitness/actions/workflows/main.yml)
+[![Rollback Workflow](https://github.com/phanibitsbyte/aceest-fitness/actions/workflows/rollback.yml/badge.svg)](https://github.com/phanibitsbyte/aceest-fitness/actions/workflows/rollback.yml)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
+[![Flask](https://img.shields.io/badge/flask-3.0-green.svg)](https://flask.palletsprojects.com/)
+[![Tests](https://img.shields.io/badge/tests-31%20passed-brightgreen.svg)](https://github.com/phanibitsbyte/aceest-fitness/actions)
+[![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen.svg)](https://github.com/phanibitsbyte/aceest-fitness/actions)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/docker-multi--stage-blue.svg)](Dockerfile)
 
 > **Course:** Introduction to DevOps (CSIZG514 / SEZG514 / SEUSZG514) — Assignment 1 · 2026
 > **Student:** 2024TM93592 · BITS Pilani WILP

@@ -63,9 +63,9 @@ jobs:
         run: |
           bandit -r app.py -ll -f txt || true
 
-      - name: Dependency vulnerability scan (Safety)
+      - name: Dependency vulnerability scan (pip-audit)
         run: |
-          safety check -r requirements.txt --output text || true
+          pip-audit -r requirements.txt || true
 
   # ----------------------------------------------------------
   # Job 2: Docker Image Assembly

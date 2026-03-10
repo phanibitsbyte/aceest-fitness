@@ -7,6 +7,11 @@
 //   2. Create a new Pipeline project.
 //   3. Set "Pipeline script from SCM" → Git → your GitHub repo URL.
 //   4. Ensure the Jenkins agent has Python 3.11+ and Docker installed.
+//
+// Recommended Jenkins plugins (for full reporting):
+//   - JUnit Plugin      → Test Results tab + trend graph  ✅ already installed
+//   - Coverage Plugin   → Coverage Report tab + trend graph (NOT "Cobertura Plugin")
+//   Install via: Manage Jenkins → Plugins → Available → search "Coverage"
 // ============================================================
 
 pipeline {
@@ -44,7 +49,7 @@ pipeline {
                 echo "==> Running Bandit security scan (SAST)..."
                 sh "${PYTHON} -m bandit -r app.py -ll -f txt || true"
                 echo "==> Checking dependencies for known vulnerabilities..."
-                sh "${PYTHON} -m safety check -r requirements.txt --output text || true"
+                sh "${PYTHON} -m pip_audit -r requirements.txt || true"
             }
         }
 
@@ -61,8 +66,22 @@ pipeline {
             }
             post {
                 always {
-                    echo "Tests completed."
-                    junit 'test-results.xml'
+                    echo "Tests completed. Coverage: see coverage.xml artifact."
+
+                    // Publish JUnit test results (requires JUnit Plugin)
+                    junit testResults: 'test-results.xml', allowEmptyResults: true
+
+                    // Publish coverage report (requires Coverage Plugin — NOT Cobertura Plugin)
+                    // Install: Manage Jenkins → Plugins → Available → search "Coverage"
+                    recordCoverage(
+                        tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
+                        id: 'coverage',
+                        name: 'ACEest Coverage Report',
+                        failOnError: false,
+                        sourceCodeRetention: 'EVERY_BUILD'
+                    )
+
+                    // Always archive raw XML so reports are downloadable even without plugins
                     archiveArtifacts artifacts: 'test-results.xml, coverage.xml', allowEmptyArchive: true
                 }
             }

@@ -75,7 +75,8 @@ aceest-fitness/
 │
 ├── .github/
 │   └── workflows/
-│       └── main.yml          # GitHub Actions CI/CD pipeline
+│       ├── main.yml          # GitHub Actions CI/CD pipeline (4 jobs)
+│       └── rollback.yml      # Manual rollback workflow (workflow_dispatch)
 │
 ├── templates/                # Jinja2 HTML templates
 │   ├── base.html
@@ -195,7 +196,7 @@ Both containers share the `aceest-net` network, allowing future integration test
 
 ## GitHub Actions Pipeline
 
-**File:** `.github/workflows/main.yml`
+**Files:** `.github/workflows/main.yml` (CI/CD) · `.github/workflows/rollback.yml` (manual rollback)
 
 **Triggers:** every `push` or `pull_request` to `main`, `develop`, or `feature/**`
 
@@ -212,7 +213,7 @@ Push / PR
                          ▼
 ┌──────────────────────────────────────────────────────┐
 │  Job 2 · Docker Image Assembly                       │
-│  docker build --target test -t aceest-fitness:ci .   │
+│  docker build -t aceest-fitness:<sha> .              │
 └────────────────────────┬─────────────────────────────┘
                          │ needs: docker-build
                          ▼
@@ -220,10 +221,40 @@ Push / PR
 │  Job 3 · Automated Testing (Containerised)           │
 │  docker run --rm aceest-fitness:test                 │
 │  → pytest: 31 tests pass                             │
+└────────────────────────┬─────────────────────────────┘
+                         │ needs: test  (main branch only)
+                         ▼
+┌──────────────────────────────────────────────────────┐
+│  Job 4 · Deploy to Production                        │
+│  docker build -t aceest-fitness:stable .             │
+│  smoke-test: curl /login → 200 OK                    │
+│  publishes deployment summary to Actions UI          │
 └──────────────────────────────────────────────────────┘
 ```
 
-All three jobs must pass for a merge to be allowed.
+> **Job 4 (Deploy)** runs only on direct pushes to `main`. PRs and feature branch pushes run jobs 1–3 only.
+
+### Manual Rollback
+
+To revert to a previous version, go to **Actions → Rollback to Previous Version → Run workflow** and enter a tag (e.g. `v3.2.4`) or commit SHA.
+
+```
+workflow_dispatch (enter tag or SHA)
+    │
+    ▼
+┌──────────────────────────────────────────────────┐
+│  Step 1 · Validate                               │
+│  Checkout target version → run pytest            │
+└────────────────────────┬─────────────────────────┘
+                         │ needs: validate
+                         ▼
+┌──────────────────────────────────────────────────┐
+│  Step 2 · Rollback Build                         │
+│  docker build -t aceest-fitness:stable .         │
+│  smoke-test: curl /login → 200 OK                │
+│  → image tagged stable and ready to redeploy     │
+└──────────────────────────────────────────────────┘
+```
 
 ---
 

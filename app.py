@@ -1,3 +1,6 @@
+# ACEest Fitness & Gym - v2.1.2
+# Client Management - Enhanced DB and summary panel
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 import sqlite3
@@ -164,3 +167,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     ACEestApp(root)
     root.mainloop()
+

@@ -1,0 +1,22 @@
+# ============================================================
+# Canary: Shared Service
+# Routes to ALL pods with app=aceest-fitness regardless of track.
+# Traffic split is proportional to replica count (9 stable : 1 canary).
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-canary-svc
+  namespace: aceest-fitness
+  labels:
+    app: aceest-fitness
+    strategy: canary
+spec:
+  selector:
+    app: aceest-fitness     # matches both stable and canary pods
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: ClusterIP

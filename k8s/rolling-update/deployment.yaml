@@ -1,0 +1,72 @@
+# ============================================================
+# Rolling Update Deployment Strategy
+# - Zero-downtime updates via maxSurge / maxUnavailable
+# - Rollback: kubectl rollout undo deployment/aceest-rolling -n aceest-fitness
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-rolling
+  namespace: aceest-fitness
+  labels:
+    app: aceest-fitness
+    strategy: rolling-update
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: aceest-fitness
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: aceest-fitness
+        strategy: rolling-update
+    spec:
+      containers:
+        - name: aceest-fitness
+          image: phanibitsbyte/aceest-fitness:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: aceest-config
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aceest-secret
+                  key: SECRET_KEY
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          volumeMounts:
+            - name: aceest-data
+              mountPath: /app/data
+      volumes:
+        - name: aceest-data
+          persistentVolumeClaim:
+            claimName: aceest-data-pvc

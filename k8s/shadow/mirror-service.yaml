@@ -1,0 +1,68 @@
+---
+# Production Service (serves real users)
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-production-svc
+  namespace: aceest-fitness
+  labels:
+    app: aceest-fitness
+    track: production
+spec:
+  selector:
+    app: aceest-fitness
+    track: production
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5000
+  type: ClusterIP
+---
+# Shadow Service (receives mirrored traffic — responses discarded)
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-shadow-svc
+  namespace: aceest-fitness
+  labels:
+    app: aceest-fitness
+    track: shadow
+spec:
+  selector:
+    app: aceest-fitness
+    track: shadow
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5000
+  type: ClusterIP
+---
+# ============================================================
+# Shadow Ingress — NGINX mirror annotation
+# Every request to production is also sent to shadow-svc.
+# Mirror responses are silently dropped.
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aceest-shadow-ingress
+  namespace: aceest-fitness
+  annotations:
+    nginx.ingress.kubernetes.io/mirror-uri: "/"
+    nginx.ingress.kubernetes.io/mirror-host: "aceest-shadow-svc.aceest-fitness.svc.cluster.local"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      mirror /mirror;
+      mirror_request_body on;
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: aceest.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aceest-production-svc
+                port:
+                  number: 80

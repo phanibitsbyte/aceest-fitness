@@ -1,0 +1,61 @@
+# ============================================================
+# Blue-Green: GREEN deployment (new version — v3.1.2)
+# Deploy green alongside blue, verify, then switch traffic.
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-green
+  namespace: aceest-fitness
+  labels:
+    app: aceest-fitness
+    slot: green
+    version: v3.1.2
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: aceest-fitness
+      slot: green
+  template:
+    metadata:
+      labels:
+        app: aceest-fitness
+        slot: green
+        version: v3.1.2
+    spec:
+      containers:
+        - name: aceest-fitness
+          image: phanibitsbyte/aceest-fitness:v3.1.2
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: aceest-config
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aceest-secret
+                  key: SECRET_KEY
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts:
+            - name: aceest-data
+              mountPath: /app/data
+      volumes:
+        - name: aceest-data
+          persistentVolumeClaim:
+            claimName: aceest-data-pvc

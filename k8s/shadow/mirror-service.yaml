@@ -50,13 +50,12 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/mirror-uri: "/"
     nginx.ingress.kubernetes.io/mirror-host: "aceest-shadow-svc.aceest-fitness.svc.cluster.local"
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      mirror /mirror;
-      mirror_request_body on;
+    # Note: configuration-snippet disabled in this cluster (security policy)
+    # Mirror traffic is handled via mirror-uri + mirror-host annotations above
 spec:
   ingressClassName: nginx
   rules:
-    - host: aceest.local
+    - host: shadow.aceest.local
       http:
         paths:
           - path: /

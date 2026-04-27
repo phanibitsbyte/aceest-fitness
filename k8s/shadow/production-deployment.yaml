@@ -58,5 +58,4 @@ spec:
               mountPath: /app/data
       volumes:
         - name: aceest-data
-          persistentVolumeClaim:
-            claimName: aceest-data-pvc
+          emptyDir: {}

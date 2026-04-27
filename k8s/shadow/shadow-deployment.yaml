@@ -55,3 +55,9 @@ spec:
               port: 5000
             initialDelaySeconds: 10
             periodSeconds: 5
+          volumeMounts:
+            - name: aceest-data
+              mountPath: /app/data
+      volumes:
+        - name: aceest-data
+          emptyDir: {}

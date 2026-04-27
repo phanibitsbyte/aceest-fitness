@@ -165,29 +165,28 @@ pipeline {
         // ── Stage 9: Deploy to Minikube (Rolling Update) ─────
         stage('Deploy to Minikube') {
             steps {
-                echo "==> Deploying to Minikube via Rolling Update..."
                 script {
-                    def kubectlAvailable = sh(script: 'which kubectl || true', returnStdout: true).trim()
+                    def kubectlAvailable = sh(script: 'which kubectl 2>/dev/null || true', returnStdout: true).trim()
                     if (!kubectlAvailable) {
                         echo "WARNING: kubectl not found in Jenkins container. Skipping Kubernetes deploy."
                         echo "To enable: install kubectl in the Jenkins container or run Jenkins with kubectl mounted."
-                        currentBuild.result = 'SUCCESS'
-                        return
+                    } else {
+                        echo "==> Deploying to Minikube via Rolling Update..."
+                        withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
+                            sh "kubectl apply -f k8s/namespace.yaml"
+                            sh "kubectl apply -f k8s/configmap.yaml"
+                            sh "kubectl apply -f k8s/pvc.yaml"
+                            sh "kubectl apply -f k8s/service.yaml"
+                            sh "kubectl apply -f k8s/rolling-update/deployment.yaml -n ${K8S_NAMESPACE}"
+                            sh """
+                                kubectl set image deployment/aceest-rolling \
+                                  aceest-fitness=${IMAGE_REPO}:${IMAGE_TAG} \
+                                  -n ${K8S_NAMESPACE}
+                            """
+                            sh "kubectl rollout status deployment/aceest-rolling -n ${K8S_NAMESPACE} --timeout=120s"
+                            sh "kubectl get pods -n ${K8S_NAMESPACE}"
+                        }
                     }
-                }
-                withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
-                    sh "kubectl apply -f k8s/namespace.yaml"
-                    sh "kubectl apply -f k8s/configmap.yaml"
-                    sh "kubectl apply -f k8s/pvc.yaml"
-                    sh "kubectl apply -f k8s/service.yaml"
-                    sh "kubectl apply -f k8s/rolling-update/deployment.yaml -n ${K8S_NAMESPACE}"
-                    sh """
-                        kubectl set image deployment/aceest-rolling \
-                          aceest-fitness=${IMAGE_REPO}:${IMAGE_TAG} \
-                          -n ${K8S_NAMESPACE}
-                    """
-                    sh "kubectl rollout status deployment/aceest-rolling -n ${K8S_NAMESPACE} --timeout=120s"
-                    sh "kubectl get pods -n ${K8S_NAMESPACE}"
                 }
             }
         }

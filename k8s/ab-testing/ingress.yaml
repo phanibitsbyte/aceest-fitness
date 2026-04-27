@@ -12,7 +12,7 @@ spec:
   ports:
     - port: 80
       targetPort: 5000
-  type: ClusterIP
+  type: NodePort
 ---
 # Service for Variant B
 apiVersion: v1

@@ -16,7 +16,7 @@ spec:
     - name: http
       port: 80
       targetPort: 5000
-  type: ClusterIP
+  type: NodePort
 ---
 # Shadow Service (receives mirrored traffic — responses discarded)
 apiVersion: v1
@@ -35,7 +35,7 @@ spec:
     - name: http
       port: 80
       targetPort: 5000
-  type: ClusterIP
+  type: NodePort
 ---
 # ============================================================
 # Shadow Ingress — NGINX mirror annotation

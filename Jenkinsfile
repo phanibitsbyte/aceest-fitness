@@ -94,17 +94,20 @@ pipeline {
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     withSonarQubeEnv('SonarQube') {
                         sh '''
-                            # Install sonar-scanner if not already present
-                            if ! command -v sonar-scanner > /dev/null 2>&1; then
-                                echo "sonar-scanner not found, installing..."
+                            SONAR_DIR="/tmp/sonar-scanner-6.2.1.4610-linux-x64"
+                            SONAR_BIN="$SONAR_DIR/bin/sonar-scanner"
+
+                            # Install sonar-scanner if not already present (use /tmp — writable by jenkins user)
+                            if [ ! -f "$SONAR_BIN" ]; then
+                                echo "sonar-scanner not found, installing to /tmp..."
                                 curl -sSL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-6.2.1.4610-linux-x64.zip \
                                      -o /tmp/sonar-scanner.zip
-                                unzip -q /tmp/sonar-scanner.zip -d /opt/
-                                ln -sf /opt/sonar-scanner-6.2.1.4610-linux-x64/bin/sonar-scanner /usr/local/bin/sonar-scanner
-                                echo "sonar-scanner installed."
+                                unzip -q /tmp/sonar-scanner.zip -d /tmp/
+                                rm -f /tmp/sonar-scanner.zip
+                                echo "sonar-scanner installed at $SONAR_DIR"
                             fi
 
-                            sonar-scanner \
+                            "$SONAR_BIN" \
                               -Dsonar.projectKey=aceest-fitness \
                               -Dsonar.projectName="ACEest Fitness and Gym" \
                               -Dsonar.projectVersion=3.2.4 \

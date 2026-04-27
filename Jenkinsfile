@@ -1,32 +1,38 @@
 // ============================================================
-// ACEest Fitness & Gym – Jenkinsfile
-// Declarative Pipeline for the Jenkins BUILD stage.
+// ACEest Fitness & Gym – Jenkinsfile (Assignment 2)
+// Full CI/CD Pipeline:
+//   Checkout → Install → Lint → Test → SonarQube Analysis →
+//   Quality Gate → Docker Build → Docker Hub Push → Deploy to Minikube
 //
-// Setup:
-//   1. Install Jenkins (https://www.jenkins.io/doc/book/installing/)
-//   2. Create a new Pipeline project.
-//   3. Set "Pipeline script from SCM" → Git → your GitHub repo URL.
-//   4. Ensure the Jenkins agent has Python 3.11+ and Docker installed.
+// Jenkins Credentials required (Manage Jenkins → Credentials):
+//   DOCKERHUB_CREDENTIALS  : Username/Password  (Docker Hub login)
+//   SONARQUBE_TOKEN        : Secret Text        (SonarQube user token)
+//   KUBECONFIG_FILE        : Secret File        (kubectl config for Minikube)
 //
-// Recommended Jenkins plugins (for full reporting):
-//   - JUnit Plugin      → Test Results tab + trend graph  ✅ already installed
-//   - Coverage Plugin   → Coverage Report tab + trend graph (NOT "Cobertura Plugin")
-//   Install via: Manage Jenkins → Plugins → Available → search "Coverage"
+// Jenkins Plugin requirements:
+//   - Coverage Plugin         (for coverage report tab)
+//   - SonarQube Scanner Plugin (Manage Jenkins → Configure System → SonarQube servers)
+//   - Docker Pipeline Plugin
+//   - Kubernetes CLI Plugin (only needed for Deploy stage)
+// Note: JUnit Plugin is NOT required — test results stored as artifacts only
 // ============================================================
 
 pipeline {
     agent any
 
     environment {
-        APP_NAME    = 'aceest-fitness'
-        PYTHON      = 'python3'
-        IMAGE_TAG   = "${env.BUILD_NUMBER}"
-        // Isolate test database from any production DB
-        DB_NAME     = 'test_aceest.db'
+        APP_NAME      = 'aceest-fitness'
+        DOCKERHUB_USER = 'phanibitsbyte'
+        IMAGE_REPO    = "${DOCKERHUB_USER}/${APP_NAME}"
+        IMAGE_TAG     = "${env.BUILD_NUMBER}"
+        PYTHON        = 'python3'
+        DB_NAME       = 'test_aceest.db'
+        K8S_NAMESPACE = 'aceest-fitness'
     }
 
     stages {
 
+        // ── Stage 1: Checkout ────────────────────────────────
         stage('Checkout') {
             steps {
                 echo "==> Checking out source code from GitHub..."
@@ -34,14 +40,16 @@ pipeline {
             }
         }
 
+        // ── Stage 2: Install Dependencies ────────────────────
         stage('Install Dependencies') {
             steps {
-                echo "==> Installing Python dependencies (dev + prod)..."
+                echo "==> Installing Python dependencies..."
                 sh "${PYTHON} -m pip install --upgrade pip"
                 sh "${PYTHON} -m pip install -r requirements-dev.txt"
             }
         }
 
+        // ── Stage 3: Lint + Security Scan ────────────────────
         stage('Lint') {
             steps {
                 echo "==> Running flake8 linter..."
@@ -53,6 +61,7 @@ pipeline {
             }
         }
 
+        // ── Stage 4: Test + Coverage ─────────────────────────
         stage('Test') {
             steps {
                 echo "==> Running Pytest suite with coverage..."
@@ -66,13 +75,6 @@ pipeline {
             }
             post {
                 always {
-                    echo "Tests completed. Coverage: see coverage.xml artifact."
-
-                    // Publish JUnit test results (requires JUnit Plugin)
-                    junit testResults: 'test-results.xml', allowEmptyResults: true
-
-                    // Publish coverage report (requires Coverage Plugin — NOT Cobertura Plugin)
-                    // Install: Manage Jenkins → Plugins → Available → search "Coverage"
                     recordCoverage(
                         tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
                         id: 'coverage',
@@ -80,18 +82,112 @@ pipeline {
                         failOnError: false,
                         sourceCodeRetention: 'EVERY_BUILD'
                     )
-
-                    // Always archive raw XML so reports are downloadable even without plugins
                     archiveArtifacts artifacts: 'test-results.xml, coverage.xml', allowEmptyArchive: true
                 }
             }
         }
 
+        // ── Stage 5: SonarQube Analysis ──────────────────────
+        stage('SonarQube Analysis') {
+            steps {
+                echo "==> Running SonarQube static analysis..."
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    withSonarQubeEnv('SonarQube') {
+                        sh '''
+                            SONAR_DIR="/tmp/sonar-scanner-6.2.1.4610-linux-x64"
+                            SONAR_BIN="$SONAR_DIR/bin/sonar-scanner"
+
+                            # Install sonar-scanner if not already present (use /tmp — writable by jenkins user)
+                            if [ ! -f "$SONAR_BIN" ]; then
+                                echo "sonar-scanner not found, installing to /tmp..."
+                                curl -sSL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-6.2.1.4610-linux-x64.zip \
+                                     -o /tmp/sonar-scanner.zip
+                                unzip -q /tmp/sonar-scanner.zip -d /tmp/
+                                rm -f /tmp/sonar-scanner.zip
+                                echo "sonar-scanner installed at $SONAR_DIR"
+                            fi
+
+                            "$SONAR_BIN" \
+                              -Dsonar.projectKey=aceest-fitness \
+                              -Dsonar.projectName="ACEest Fitness and Gym" \
+                              -Dsonar.projectVersion=3.2.4 \
+                              -Dsonar.sources=app.py \
+                              -Dsonar.tests=tests \
+                              -Dsonar.python.coverage.reportPaths=coverage.xml
+                        '''
+                        // Note: SONAR_HOST_URL and SONAR_AUTH_TOKEN are injected as shell
+                        // env vars by withSonarQubeEnv — sonar-scanner picks them up automatically
+                    }
+                }
+            }
+        }
+
+        // ── Stage 6: Quality Gate ─────────────────────────────
+        stage('Quality Gate') {
+            steps {
+                echo "==> Waiting for SonarQube Quality Gate result..."
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    timeout(time: 5, unit: 'MINUTES') {
+                        waitForQualityGate abortPipeline: false
+                    }
+                }
+            }
+        }
+
+        // ── Stage 7: Docker Build ─────────────────────────────
         stage('Docker Build') {
             steps {
-                echo "==> Building Docker image: ${APP_NAME}:${IMAGE_TAG}"
-                sh "docker build -t ${APP_NAME}:${IMAGE_TAG} ."
-                sh "docker tag ${APP_NAME}:${IMAGE_TAG} ${APP_NAME}:latest"
+                echo "==> Building Docker image: ${IMAGE_REPO}:${IMAGE_TAG}"
+                sh "docker build --target production -t ${IMAGE_REPO}:${IMAGE_TAG} ."
+                sh "docker tag ${IMAGE_REPO}:${IMAGE_TAG} ${IMAGE_REPO}:latest"
+                sh "docker tag ${IMAGE_REPO}:${IMAGE_TAG} ${IMAGE_REPO}:v3.2.4"
+            }
+        }
+
+        // ── Stage 8: Docker Hub Push ──────────────────────────
+        stage('Docker Hub Push') {
+            steps {
+                echo "==> Pushing image to Docker Hub..."
+                withCredentials([usernamePassword(
+                    credentialsId: 'DOCKERHUB_CREDENTIALS',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
+                    sh "docker push ${IMAGE_REPO}:${IMAGE_TAG}"
+                    sh "docker push ${IMAGE_REPO}:latest"
+                    sh "docker push ${IMAGE_REPO}:v3.2.4"
+                    sh "docker logout"
+                }
+            }
+        }
+
+        // ── Stage 9: Deploy to Minikube (Rolling Update) ─────
+        stage('Deploy to Minikube') {
+            steps {
+                script {
+                    def kubectlAvailable = sh(script: 'which kubectl 2>/dev/null || true', returnStdout: true).trim()
+                    if (!kubectlAvailable) {
+                        echo "WARNING: kubectl not found in Jenkins container. Skipping Kubernetes deploy."
+                        echo "To enable: install kubectl in the Jenkins container or run Jenkins with kubectl mounted."
+                    } else {
+                        echo "==> Deploying to Minikube via Rolling Update..."
+                        withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
+                            sh "kubectl apply -f k8s/namespace.yaml"
+                            sh "kubectl apply -f k8s/configmap.yaml"
+                            sh "kubectl apply -f k8s/pvc.yaml"
+                            sh "kubectl apply -f k8s/service.yaml"
+                            sh "kubectl apply -f k8s/rolling-update/deployment.yaml -n ${K8S_NAMESPACE}"
+                            sh """
+                                kubectl set image deployment/aceest-rolling \
+                                  aceest-fitness=${IMAGE_REPO}:${IMAGE_TAG} \
+                                  -n ${K8S_NAMESPACE}
+                            """
+                            sh "kubectl rollout status deployment/aceest-rolling -n ${K8S_NAMESPACE} --timeout=120s"
+                            sh "kubectl get pods -n ${K8S_NAMESPACE}"
+                        }
+                    }
+                }
             }
         }
 
@@ -99,13 +195,28 @@ pipeline {
 
     post {
         success {
-            echo "✅ BUILD SUCCESSFUL – ACEest image ${APP_NAME}:${IMAGE_TAG} is ready."
+            echo "✅ Pipeline SUCCESSFUL — ${IMAGE_REPO}:${IMAGE_TAG} deployed via Rolling Update."
         }
         failure {
-            echo "❌ BUILD FAILED – Review the stage logs above for details."
+            echo "❌ Pipeline FAILED — attempting rollback if kubectl available..."
+            script {
+                def kubectlAvailable = sh(script: 'which kubectl || true', returnStdout: true).trim()
+                if (kubectlAvailable) {
+                    try {
+                        withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
+                            sh "kubectl rollout undo deployment/aceest-rolling -n ${K8S_NAMESPACE} || true"
+                        }
+                    } catch (err) {
+                        echo "Rollback skipped: ${err.message}"
+                    }
+                } else {
+                    echo "kubectl not available — skipping rollback."
+                }
+            }
         }
         always {
-            echo "Pipeline finished at ${new Date()}."
+            echo "Pipeline finished."
+            sh "docker rmi ${IMAGE_REPO}:${IMAGE_TAG} || true"
         }
     }
 }

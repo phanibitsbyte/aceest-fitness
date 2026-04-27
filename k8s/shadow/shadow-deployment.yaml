@@ -1,0 +1,57 @@
+# ============================================================
+# Shadow Deployment: Shadow (next-version — v3.2.4-dev or new feature branch)
+# Receives mirrored traffic from the production ingress.
+# Responses are NOT returned to users — purely for dark testing.
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aceest-shadow
+  namespace: aceest-fitness
+  labels:
+    app: aceest-fitness
+    track: shadow
+    version: v3.2.4
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aceest-fitness
+      track: shadow
+  template:
+    metadata:
+      labels:
+        app: aceest-fitness
+        track: shadow
+        version: v3.2.4
+    spec:
+      containers:
+        - name: aceest-fitness
+          image: phanibitsbyte/aceest-fitness:v3.2.4
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: aceest-config
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aceest-secret
+                  key: SECRET_KEY
+            - name: SHADOW_MODE
+              value: "true"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "128Mi"
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 5

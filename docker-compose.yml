@@ -2,8 +2,10 @@
 # ACEest Fitness & Gym – Docker Compose
 #
 # Services:
-#   web      – Flask application  → http://localhost:5000
-#   jenkins  – Jenkins CI server  → http://localhost:8080
+#   web        – Flask application  → http://localhost:5000
+#   jenkins    – Jenkins CI server  → http://localhost:8080
+#   sonarqube  – SonarQube server   → http://localhost:9000
+#   sonardb    – PostgreSQL for SonarQube (internal)
 #
 # Usage:
 #   Start all:       docker compose up -d
@@ -12,18 +14,22 @@
 #   Remove volumes:  docker compose down -v
 #   Logs:            docker compose logs -f
 #
+# SonarQube first-run setup:
+#   1. Open http://localhost:9000  (admin / admin — change on first login)
+#   2. Create a new project: aceest-fitness
+#   3. Generate a User Token (My Account → Security → Generate Token)
+#   4. Add the token to Jenkins: Manage Jenkins → Credentials → SONARQUBE_TOKEN
+#   5. Configure SonarQube server in Jenkins:
+#        Manage Jenkins → Configure System → SonarQube servers
+#        Name: SonarQube  URL: http://sonarqube:9000
+#
 # Jenkins first-run setup:
 #   1. Open http://localhost:8080
 #   2. Retrieve the initial admin password:
 #        docker exec aceest-jenkins \
 #          cat /var/jenkins_home/secrets/initialAdminPassword
-#   3. Create an admin user when prompted.
-#   4. Create a new "Pipeline" job:
-#        - Definition: Pipeline script from SCM
-#        - SCM: Git  →  https://github.com/phanibitsbyte/aceest-fitness.git
-#        - Branch: */develop  (or */main)
-#        - Script Path: Jenkinsfile
-#   5. Click "Build Now" — all 5 stages should go green.
+#   3. Create a new "Pipeline" job → SCM: Git → Jenkinsfile
+#   4. Click "Build Now"
 # ============================================================
 
 services:
@@ -80,6 +86,42 @@ services:
     networks:
       - aceest-net
 
+  # ── SonarQube PostgreSQL database ─────────────────────────
+  sonardb:
+    image: postgres:15-alpine
+    container_name: aceest-sonardb
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonarqube
+    volumes:
+      - sonardb_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - aceest-net
+
+  # ── SonarQube code quality server ─────────────────────────
+  sonarqube:
+    image: sonarqube:10-community
+    container_name: aceest-sonarqube
+    depends_on:
+      - sonardb
+    ports:
+      - "9000:9000"    # SonarQube web UI
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonardb:5432/sonarqube
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_extensions:/opt/sonarqube/extensions
+    # SonarQube requires vm.max_map_count >= 524288 on Linux hosts:
+    #   sudo sysctl -w vm.max_map_count=524288
+    restart: unless-stopped
+    networks:
+      - aceest-net
+
 networks:
   aceest-net:
     driver: bridge
@@ -89,4 +131,12 @@ volumes:
     name: aceest_data
   jenkins_home:
     name: jenkins_home
+  sonardb_data:
+    name: sonardb_data
+  sonarqube_data:
+    name: sonarqube_data
+  sonarqube_logs:
+    name: sonarqube_logs
+  sonarqube_extensions:
+    name: sonarqube_extensions
 

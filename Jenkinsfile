@@ -10,11 +10,11 @@
 //   KUBECONFIG_FILE        : Secret File        (kubectl config for Minikube)
 //
 // Jenkins Plugin requirements:
-//   - JUnit Plugin
-//   - Coverage Plugin
+//   - Coverage Plugin         (for coverage report tab)
 //   - SonarQube Scanner Plugin (Manage Jenkins → Configure System → SonarQube servers)
 //   - Docker Pipeline Plugin
-//   - Kubernetes CLI Plugin
+//   - Kubernetes CLI Plugin (only needed for Deploy stage)
+// Note: JUnit Plugin is NOT required — test results stored as artifacts only
 // ============================================================
 
 pipeline {

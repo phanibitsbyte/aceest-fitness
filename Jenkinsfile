@@ -75,14 +75,6 @@ pipeline {
             }
             post {
                 always {
-                    // JUnit plugin optional — skip gracefully if not installed
-                    script {
-                        try {
-                            junit testResults: 'test-results.xml', allowEmptyResults: true
-                        } catch (err) {
-                            echo "WARNING: JUnit plugin not available — install 'JUnit Plugin' in Jenkins. Test results archived as artifact instead."
-                        }
-                    }
                     recordCoverage(
                         tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
                         id: 'coverage',

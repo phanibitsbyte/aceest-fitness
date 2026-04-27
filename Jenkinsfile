@@ -91,28 +91,30 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 echo "==> Running SonarQube static analysis..."
-                withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        # Install sonar-scanner if not already present
-                        if ! command -v sonar-scanner > /dev/null 2>&1; then
-                            echo "sonar-scanner not found, installing..."
-                            wget -q https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-6.2.1.4610-linux-x64.zip \
-                                 -O /tmp/sonar-scanner.zip
-                            unzip -q /tmp/sonar-scanner.zip -d /opt/
-                            ln -sf /opt/sonar-scanner-6.2.1.4610-linux-x64/bin/sonar-scanner /usr/local/bin/sonar-scanner
-                            echo "sonar-scanner installed."
-                        fi
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    withSonarQubeEnv('SonarQube') {
+                        sh '''
+                            # Install sonar-scanner if not already present
+                            if ! command -v sonar-scanner > /dev/null 2>&1; then
+                                echo "sonar-scanner not found, installing..."
+                                curl -sSL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-6.2.1.4610-linux-x64.zip \
+                                     -o /tmp/sonar-scanner.zip
+                                unzip -q /tmp/sonar-scanner.zip -d /opt/
+                                ln -sf /opt/sonar-scanner-6.2.1.4610-linux-x64/bin/sonar-scanner /usr/local/bin/sonar-scanner
+                                echo "sonar-scanner installed."
+                            fi
 
-                        sonar-scanner \
-                          -Dsonar.projectKey=aceest-fitness \
-                          -Dsonar.projectName="ACEest Fitness and Gym" \
-                          -Dsonar.projectVersion=3.2.4 \
-                          -Dsonar.sources=app.py \
-                          -Dsonar.tests=tests \
-                          -Dsonar.python.coverage.reportPaths=coverage.xml
-                    '''
-                    // Note: SONAR_HOST_URL and SONAR_AUTH_TOKEN are injected as shell
-                    // env vars by withSonarQubeEnv — sonar-scanner picks them up automatically
+                            sonar-scanner \
+                              -Dsonar.projectKey=aceest-fitness \
+                              -Dsonar.projectName="ACEest Fitness and Gym" \
+                              -Dsonar.projectVersion=3.2.4 \
+                              -Dsonar.sources=app.py \
+                              -Dsonar.tests=tests \
+                              -Dsonar.python.coverage.reportPaths=coverage.xml
+                        '''
+                        // Note: SONAR_HOST_URL and SONAR_AUTH_TOKEN are injected as shell
+                        // env vars by withSonarQubeEnv — sonar-scanner picks them up automatically
+                    }
                 }
             }
         }

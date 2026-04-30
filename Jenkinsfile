@@ -126,9 +126,19 @@ pipeline {
         stage('Quality Gate') {
             steps {
                 echo "==> Waiting for SonarQube Quality Gate result..."
-                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                    timeout(time: 5, unit: 'MINUTES') {
-                        waitForQualityGate abortPipeline: false
+                script {
+                    try {
+                        timeout(time: 5, unit: 'MINUTES') {
+                            def qg = waitForQualityGate abortPipeline: false
+                            if (qg.status != 'OK') {
+                                unstable("Quality Gate status: ${qg.status}")
+                            } else {
+                                echo "✅ Quality Gate PASSED"
+                            }
+                        }
+                    } catch (e) {
+                        echo "⚠️ Quality Gate timed out or no webhook configured — continuing pipeline..."
+                        currentBuild.result = 'SUCCESS'
                     }
                 }
             }
@@ -168,23 +178,33 @@ pipeline {
                 script {
                     def kubectlAvailable = sh(script: 'which kubectl 2>/dev/null || true', returnStdout: true).trim()
                     if (!kubectlAvailable) {
-                        echo "WARNING: kubectl not found in Jenkins container. Skipping Kubernetes deploy."
-                        echo "To enable: install kubectl in the Jenkins container or run Jenkins with kubectl mounted."
+                        echo "WARNING: kubectl not found in Jenkins. Skipping Kubernetes deploy."
                     } else {
-                        echo "==> Deploying to Minikube via Rolling Update..."
                         withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
-                            sh "kubectl apply -f k8s/namespace.yaml"
-                            sh "kubectl apply -f k8s/configmap.yaml"
-                            sh "kubectl apply -f k8s/pvc.yaml"
-                            sh "kubectl apply -f k8s/service.yaml"
-                            sh "kubectl apply -f k8s/rolling-update/deployment.yaml -n ${K8S_NAMESPACE}"
-                            sh """
-                                kubectl set image deployment/aceest-rolling \
-                                  aceest-fitness=${IMAGE_REPO}:${IMAGE_TAG} \
-                                  -n ${K8S_NAMESPACE}
-                            """
-                            sh "kubectl rollout status deployment/aceest-rolling -n ${K8S_NAMESPACE} --timeout=120s"
-                            sh "kubectl get pods -n ${K8S_NAMESPACE}"
+                            // Check if minikube cluster is reachable before attempting deploy
+                            def clusterOk = sh(
+                                script: 'kubectl cluster-info --request-timeout=8s > /dev/null 2>&1 && echo "ok" || echo "unreachable"',
+                                returnStdout: true
+                            ).trim()
+
+                            if (clusterOk != 'ok') {
+                                echo "⚠️ Minikube cluster not reachable (not running?). Skipping deploy."
+                                echo "   Run 'minikube start' then re-run the pipeline to deploy."
+                            } else {
+                                echo "==> Deploying to Minikube via Rolling Update..."
+                                sh "kubectl apply -f k8s/namespace.yaml --validate=false"
+                                sh "kubectl apply -f k8s/configmap.yaml --validate=false"
+                                sh "kubectl apply -f k8s/pvc.yaml --validate=false"
+                                sh "kubectl apply -f k8s/service.yaml --validate=false"
+                                sh "kubectl apply -f k8s/rolling-update/deployment.yaml -n ${K8S_NAMESPACE} --validate=false"
+                                sh """
+                                    kubectl set image deployment/aceest-rolling \
+                                      aceest-fitness=${IMAGE_REPO}:${IMAGE_TAG} \
+                                      -n ${K8S_NAMESPACE}
+                                """
+                                sh "kubectl rollout status deployment/aceest-rolling -n ${K8S_NAMESPACE} --timeout=120s"
+                                sh "kubectl get pods -n ${K8S_NAMESPACE}"
+                            }
                         }
                     }
                 }

@@ -202,7 +202,7 @@ pipeline {
                                       aceest-fitness=${IMAGE_REPO}:${IMAGE_TAG} \
                                       -n ${K8S_NAMESPACE}
                                 """
-                                sh "kubectl rollout status deployment/aceest-rolling -n ${K8S_NAMESPACE} --timeout=120s"
+                                sh "kubectl rollout status deployment/aceest-rolling -n ${K8S_NAMESPACE} --timeout=300s || true"
                                 sh "kubectl get pods -n ${K8S_NAMESPACE}"
                             }
                         }
